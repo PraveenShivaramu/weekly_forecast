@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils.data_loader import load_data
+from utils.supabase_db import fetch_delivery_data
 
 st.title("📊 Operations Dashboard")
 
-df = load_data()
+df = fetch_delivery_data()
 
-if df is None:
+if df.empty:
     st.warning("No data file found. Please check data/delivery_data.xlsx")
     st.stop()
 

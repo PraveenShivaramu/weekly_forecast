@@ -1,18 +1,24 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils.data_loader import load_data
+from utils.supabase_db import fetch_delivery_data
 from utils.forecasting import forecast_range
 
 st.title("📅 Forecast Planner")
 
-df = load_data()
+df = fetch_delivery_data()
 
-if df is None:
-    st.warning("No data file found")
+if df.empty:
+    st.warning("No database data found. Please enter data in Data Entry page first.")
     st.stop()
 
-stations = sorted(df["Station"].unique())
+# Make sure Date is datetime
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+# Make sure Day column exists
+df["Day"] = df["Date"].dt.day_name()
+
+stations = sorted(df["Station"].dropna().unique())
 
 col1, col2, col3 = st.columns(3)
 
@@ -22,7 +28,6 @@ to_date = col3.date_input("To Date")
 
 buffer_pct = st.slider("Driver Buffer %", 0, 20, 10)
 
-
 def confidence_label(history_used):
     if history_used >= 4:
         return "High"
@@ -30,7 +35,6 @@ def confidence_label(history_used):
         return "Medium"
     else:
         return "Low"
-
 
 if st.button("Generate Forecast"):
 
@@ -42,6 +46,10 @@ if st.button("Generate Forecast"):
         history_weeks=4,
         buffer_pct=buffer_pct
     )
+
+    if result.empty:
+        st.warning("No forecast generated.")
+        st.stop()
 
     result["Confidence"] = result["History Used"].apply(confidence_label)
 
@@ -64,15 +72,13 @@ if st.button("Generate Forecast"):
     s1.metric("Total Expected Orders", f"{total_orders:,.0f}")
     s2.metric("Total Drivers Needed", f"{total_drivers:,.0f}")
 
-    if not summary.empty:
-        morning_drivers = summary.loc[summary["Wave"] == "Morning", "Drivers Needed"].sum()
-        afternoon_drivers = summary.loc[summary["Wave"] == "Afternoon", "Drivers Needed"].sum()
-        s3.metric("Morning / Afternoon Drivers", f"{morning_drivers:.0f} / {afternoon_drivers:.0f}")
+    morning_drivers = summary.loc[summary["Wave"] == "Morning", "Drivers Needed"].sum()
+    afternoon_drivers = summary.loc[summary["Wave"] == "Afternoon", "Drivers Needed"].sum()
+    s3.metric("Morning / Afternoon Drivers", f"{morning_drivers:.0f} / {afternoon_drivers:.0f}")
 
     st.dataframe(summary, use_container_width=True, hide_index=True)
 
     st.subheader("Forecast Details")
-
     st.dataframe(result, use_container_width=True, hide_index=True)
 
     csv = result.to_csv(index=False).encode("utf-8")
