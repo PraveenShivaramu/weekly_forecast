@@ -60,3 +60,48 @@ def fetch_delivery_data():
     })
 
     return df
+def get_delivery_record(delivery_date, station, wave):
+    supabase = get_supabase_client()
+
+    response = (
+        supabase
+        .table("delivery_data")
+        .select("*")
+        .eq("delivery_date", str(delivery_date))
+        .eq("station", station)
+        .eq("wave", wave)
+        .execute()
+    )
+
+    if response.data:
+        return response.data[0]
+
+    return None
+
+
+def update_delivery_record(record_id, updated_record):
+    supabase = get_supabase_client()
+
+    response = (
+        supabase
+        .table("delivery_data")
+        .update(updated_record)
+        .eq("id", record_id)
+        .execute()
+    )
+
+    return response
+
+
+def delete_delivery_record(record_id):
+    supabase = get_supabase_client()
+
+    response = (
+        supabase
+        .table("delivery_data")
+        .delete()
+        .eq("id", record_id)
+        .execute()
+    )
+
+    return response
